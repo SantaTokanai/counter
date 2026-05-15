@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>カウンター</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f3;
+      --bg-info: #e6f1fb;
+      --text: #1a1a18;
+      --text-secondary: #6b6b68;
+      --text-info: #185fa5;
+      --border: rgba(0,0,0,0.12);
+      --border-hover: rgba(0,0,0,0.25);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1c;
+        --bg-secondary: #2a2a27;
+        --bg-info: #0c2e4a;
+        --text: #f0ede8;
+        --text-secondary: #9a9893;
+        --text-info: #85b7eb;
+        --border: rgba(255,255,255,0.12);
+        --border-hover: rgba(255,255,255,0.25);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text);
+      min-height: 100dvh;
+    }
+
+    /* ─── 固定ヘッダー ─── */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      border-bottom: 0.5px solid var(--border);
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .sticky-header h1 {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .total-num {
+      font-size: 30px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+      flex: 1;
+    }
+    .unit {
+      font-size: 14px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .reset-btn {
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-hover);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .reset-btn:active { background: var(--bg-secondary); }
+
+    /* ─── スロット一覧 ─── */
+    .slots-wrap {
+      padding: 14px 12px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .slot-card {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px 14px;
+    }
+
+    .slot-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .slot-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+    .slot-value {
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--text);
+      min-width: 28px;
+      text-align: right;
+    }
+    .slot-unit {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .count-btn {
+      padding: 10px 4px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-hover);
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s, transform 0.1s;
+    }
+    .count-btn:active { transform: scale(0.94); }
+    .count-btn.selected {
+      background: var(--bg-info);
+      color: var(--text-info);
+      border-color: transparent;
+    }
+
+    .free-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .free-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .free-input {
+      width: 68px;
+      font-size: 15px;
+      padding: 7px 8px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-hover);
+      background: transparent;
+      color: var(--text);
+      text-align: center;
+      font-family: inherit;
+    }
+    .free-input:focus { outline: none; border-color: var(--text-info); }
+    .free-set-btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-hover);
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .free-set-btn:active { background: var(--bg-secondary); }
+  </style>
+</head>
+<body>
+
+  <div class="sticky-header">
+    <h1>合計</h1>
+    <span class="total-num" id="grand-total">0</span>
+    <span class="unit">回</span>
+    <button class="reset-btn" id="reset-btn">リセット</button>
+  </div>
+
+  <div class="slots-wrap" id="slots-wrap"></div>
+
+  <script>
+    const PRESETS = [1, 2, 3, 4, 5];
+    const NUM_SLOTS = 10;
+    const values = new Array(NUM_SLOTS).fill(0);
+
+    function updateTotal() {
+      document.getElementById('grand-total').textContent =
+        values.reduce((a, b) => a + b, 0);
+    }
+
+    function setSlot(i, val, btnIdx) {
+      values[i] = val;
+      document.getElementById('slot-val-' + i).textContent = val;
+      document.querySelectorAll('#slot-' + i + ' .count-btn')
+        .forEach((b, idx) => b.classList.toggle('selected', idx === btnIdx));
+      updateTotal();
+    }
+
+    // スロット生成
+    const wrap = document.getElementById('slots-wrap');
+    for (let i = 0; i < NUM_SLOTS; i++) {
+      const card = document.createElement('div');
+      card.className = 'slot-card';
+      card.id = 'slot-' + i;
+
+      // プリセットボタン
+      const btnRow = document.createElement('div');
+      btnRow.className = 'btn-row';
+      PRESETS.forEach((n, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'count-btn';
+        btn.textContent = n + '回';
+        btn.addEventListener('click', () => {
+          document.getElementById('free-inp-' + i).value = '';
+          setSlot(i, n, idx);
+        });
+        btnRow.appendChild(btn);
+      });
+
+      // ヘッダー
+      const header = document.createElement('div');
+      header.className = 'slot-header';
+      header.innerHTML =
+        '<span class="slot-name">枠 ' + (i + 1) + '</span>' +
+        '<span class="slot-value" id="slot-val-' + i + '">0</span>' +
+        '<span class="slot-unit">回</span>';
+
+      // フリー入力行
+      const freeRow = document.createElement('div');
+      freeRow.className = 'free-row';
+      const freeLabel = document.createElement('span');
+      freeLabel.className = 'free-label';
+      freeLabel.textContent = 'フリー入力';
+
+      const freeInput = document.createElement('input');
+      freeInput.type = 'number';
+      freeInput.min = '0';
+      freeInput.id = 'free-inp-' + i;
+      freeInput.className = 'free-input';
+      freeInput.placeholder = '0';
+      freeInput.inputMode = 'numeric';
+
+      const freeBtn = document.createElement('button');
+      freeBtn.className = 'free-set-btn';
+      freeBtn.textContent = 'セット';
+      freeBtn.addEventListener('click', () => {
+        const v = parseInt(freeInput.value, 10) || 0;
+        document.querySelectorAll('#slot-' + i + ' .count-btn')
+          .forEach(b => b.classList.remove('selected'));
+        setSlot(i, v, null);
+      });
+
+      freeRow.appendChild(freeLabel);
+      freeRow.appendChild(freeInput);
+      freeRow.appendChild(freeBtn);
+
+      card.appendChild(header);
+      card.appendChild(btnRow);
+      card.appendChild(freeRow);
+      wrap.appendChild(card);
+    }
+
+    // リセット
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      values.fill(0);
+      for (let i = 0; i < NUM_SLOTS; i++) {
+        document.getElementById('slot-val-' + i).textContent = '0';
+        document.querySelectorAll('#slot-' + i + ' .count-btn')
+          .forEach(b => b.classList.remove('selected'));
+        document.getElementById('free-inp-' + i).value = '';
+      }
+      updateTotal();
+    });
+  </script>
+</body>
+</html>
