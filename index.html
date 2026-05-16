@@ -360,35 +360,11 @@
 
     updateTotal();
 
-    // リセット（回数＋メモをすべてリセット）
-    document.getElementById('reset-btn').addEventListener('click', () => {
-      if (!confirm('回数とメモをすべてリセットしますか？')) return;
-      const total = values.length;
-      values.fill(0);
-      memos.fill('');
-      for (let i = 0; i < total; i++) {
-        const slotVal = document.getElementById('slot-val-' + i);
-        if (slotVal) slotVal.textContent = '0';
-        document.querySelectorAll('#slot-' + i + ' .count-btn')
-          .forEach(b => b.classList.remove('selected'));
-        const fi = document.getElementById('free-inp-' + i);
-        if (fi) fi.value = '';
-        const mi = document.getElementById('memo-' + i);
-        if (mi) mi.value = '';
-      }
-      saveValues();
-      saveMemos();
-      updateTotal();
-    });
+    // 追加枠の枚数を管理（デフォルト0枚）
+    let extraSlots = 0;
 
-    // 枠を追加する関数
-    function addSlot() {
-      const i = values.length;
-      values.push(0);
-      memos.push('');
-      saveValues();
-      saveMemos();
-
+    // 枠カードを1枚生成して wrap に追加する共通関数
+    function createSlotCard(i) {
       const card = document.createElement('div');
       card.className = 'slot-card';
       card.id = 'slot-' + i;
@@ -397,7 +373,7 @@
       header.className = 'slot-header';
       header.innerHTML =
         '<span class="slot-name">枠 ' + (i + 1) + '</span>' +
-        '<span class="slot-value" id="slot-val-' + i + '">0</span>' +
+        '<span class="slot-value" id="slot-val-' + i + '">' + (values[i] || 0) + '</span>' +
         '<span class="slot-unit">回</span>';
 
       const memo = document.createElement('textarea');
@@ -406,7 +382,7 @@
       memo.placeholder = 'メモ（全角10文字程度）';
       memo.maxLength = 20;
       memo.rows = 1;
-      memo.value = '';
+      memo.value = memos[i] || '';
       memo.addEventListener('input', () => { memos[i] = memo.value; saveMemos(); });
 
       const btnRow = document.createElement('div');
@@ -415,6 +391,7 @@
         const btn = document.createElement('button');
         btn.className = 'count-btn';
         btn.textContent = n + '回';
+        if ((values[i] || 0) === n) btn.classList.add('selected');
         btn.addEventListener('click', () => {
           if (btn.classList.contains('selected')) {
             btn.classList.remove('selected');
@@ -443,6 +420,9 @@
       freeInput.className = 'free-input';
       freeInput.placeholder = '0';
       freeInput.inputMode = 'numeric';
+      if ((values[i] || 0) > 0 && !PRESETS.includes(values[i])) {
+        freeInput.value = values[i];
+      }
       const freeBtn = document.createElement('button');
       freeBtn.className = 'free-set-btn';
       freeBtn.textContent = 'セット';
@@ -460,8 +440,51 @@
       card.appendChild(memo);
       card.appendChild(btnRow);
       card.appendChild(freeRow);
-
       wrap.appendChild(card);
+    }
+
+    // リセット：1〜10枠の回数・メモをリセット、11枠目以降は削除
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (!confirm('回数とメモをすべてリセットしますか？\n（11枠目以降は削除されます）')) return;
+
+      // 追加枠をDOMから削除
+      for (let i = NUM_SLOTS; i < NUM_SLOTS + extraSlots; i++) {
+        const card = document.getElementById('slot-' + i);
+        if (card) card.remove();
+      }
+      extraSlots = 0;
+
+      // valuesとmemosを10枠分に切り詰めてゼロクリア
+      values.length = NUM_SLOTS;
+      memos.length = NUM_SLOTS;
+      values.fill(0);
+      memos.fill('');
+
+      // 1〜10枠の表示をリセット
+      for (let i = 0; i < NUM_SLOTS; i++) {
+        const slotVal = document.getElementById('slot-val-' + i);
+        if (slotVal) slotVal.textContent = '0';
+        document.querySelectorAll('#slot-' + i + ' .count-btn')
+          .forEach(b => b.classList.remove('selected'));
+        const fi = document.getElementById('free-inp-' + i);
+        if (fi) fi.value = '';
+        const mi = document.getElementById('memo-' + i);
+        if (mi) mi.value = '';
+      }
+      saveValues();
+      saveMemos();
+      updateTotal();
+    });
+
+    // 枠を追加する関数（常にNUM_SLOTS+extraSlotsの次の番号で追加）
+    function addSlot() {
+      const i = NUM_SLOTS + extraSlots;  // 常に10+追加数で連番
+      extraSlots++;
+      values[i] = 0;
+      memos[i] = '';
+      saveValues();
+      saveMemos();
+      createSlotCard(i);
     }
   </script>
 </body>
