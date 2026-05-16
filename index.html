@@ -240,7 +240,7 @@
         const raw = localStorage.getItem(MEMO_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length === NUM_SLOTS) return parsed;
+          if (Array.isArray(parsed) && parsed.length >= 1) return parsed;
         }
       } catch (e) {}
       return new Array(NUM_SLOTS).fill('');
@@ -461,8 +461,7 @@
       card.appendChild(btnRow);
       card.appendChild(freeRow);
 
-      // 追加ボタンの直前に挿入
-      wrap.insertBefore(card, document.getElementById('add-slot-btn').parentNode);
+      wrap.appendChild(card);
     }
   </script>
 </body>
