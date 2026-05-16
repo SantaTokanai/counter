@@ -84,7 +84,7 @@
 
     /* ─── スロット一覧 ─── */
     .slots-wrap {
-      padding: 14px 12px 48px;
+      padding: 14px 12px 10px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -178,6 +178,27 @@
       -webkit-tap-highlight-color: transparent;
     }
     .free-set-btn:active { background: var(--bg-secondary); }
+
+    /* ─── 枠追加ボタン ─── */
+    .add-slot-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 12px 48px;
+    }
+    .add-slot-btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border-radius: var(--radius-lg);
+      border: 1px dashed var(--border-hover);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .add-slot-btn:active { background: var(--bg-secondary); }
   </style>
 </head>
 <body>
@@ -190,6 +211,7 @@
   </div>
 
   <div class="slots-wrap" id="slots-wrap"></div>
+  <div class="add-slot-wrap"><button class="add-slot-btn" id="add-slot-btn" onclick="addSlot()">＋ 枠を追加</button></div>
 
   <script>
     const PRESETS = [1, 2, 3, 4, 5];
@@ -203,7 +225,7 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length === NUM_SLOTS) return parsed;
+          if (Array.isArray(parsed) && parsed.length >= 1) return parsed;
         }
       } catch (e) {}
       return new Array(NUM_SLOTS).fill(0);
@@ -263,7 +285,7 @@
       const memo = document.createElement('textarea');
       memo.className = 'memo-input';
       memo.id = 'memo-' + i;
-      memo.placeholder = 'メモ';
+      memo.placeholder = 'メモ（全角10文字程度）';
       memo.maxLength = 20;          // 全角10文字 ≒ バイト数20で制限
       memo.rows = 1;
       memo.value = memos[i];
@@ -338,19 +360,110 @@
 
     updateTotal();
 
-    // リセット（確認あり・メモは消さない）
+    // リセット（回数＋メモをすべてリセット）
     document.getElementById('reset-btn').addEventListener('click', () => {
-      if (!confirm('回数をリセットしますか？\n（メモは残ります）')) return;
+      if (!confirm('回数とメモをすべてリセットしますか？')) return;
+      const total = values.length;
       values.fill(0);
-      for (let i = 0; i < NUM_SLOTS; i++) {
-        document.getElementById('slot-val-' + i).textContent = '0';
+      memos.fill('');
+      for (let i = 0; i < total; i++) {
+        const slotVal = document.getElementById('slot-val-' + i);
+        if (slotVal) slotVal.textContent = '0';
         document.querySelectorAll('#slot-' + i + ' .count-btn')
           .forEach(b => b.classList.remove('selected'));
-        document.getElementById('free-inp-' + i).value = '';
+        const fi = document.getElementById('free-inp-' + i);
+        if (fi) fi.value = '';
+        const mi = document.getElementById('memo-' + i);
+        if (mi) mi.value = '';
       }
       saveValues();
+      saveMemos();
       updateTotal();
     });
+
+    // 枠を追加する関数
+    function addSlot() {
+      const i = values.length;
+      values.push(0);
+      memos.push('');
+      saveValues();
+      saveMemos();
+
+      const card = document.createElement('div');
+      card.className = 'slot-card';
+      card.id = 'slot-' + i;
+
+      const header = document.createElement('div');
+      header.className = 'slot-header';
+      header.innerHTML =
+        '<span class="slot-name">枠 ' + (i + 1) + '</span>' +
+        '<span class="slot-value" id="slot-val-' + i + '">0</span>' +
+        '<span class="slot-unit">回</span>';
+
+      const memo = document.createElement('textarea');
+      memo.className = 'memo-input';
+      memo.id = 'memo-' + i;
+      memo.placeholder = 'メモ（全角10文字程度）';
+      memo.maxLength = 20;
+      memo.rows = 1;
+      memo.value = '';
+      memo.addEventListener('input', () => { memos[i] = memo.value; saveMemos(); });
+
+      const btnRow = document.createElement('div');
+      btnRow.className = 'btn-row';
+      PRESETS.forEach((n, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'count-btn';
+        btn.textContent = n + '回';
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            values[i] = 0;
+            document.getElementById('slot-val-' + i).textContent = '0';
+            document.getElementById('free-inp-' + i).value = '';
+            saveValues();
+            updateTotal();
+          } else {
+            document.getElementById('free-inp-' + i).value = '';
+            setSlot(i, n, idx);
+          }
+        });
+        btnRow.appendChild(btn);
+      });
+
+      const freeRow = document.createElement('div');
+      freeRow.className = 'free-row';
+      const freeLabel = document.createElement('span');
+      freeLabel.className = 'free-label';
+      freeLabel.textContent = 'フリー入力';
+      const freeInput = document.createElement('input');
+      freeInput.type = 'number';
+      freeInput.min = '0';
+      freeInput.id = 'free-inp-' + i;
+      freeInput.className = 'free-input';
+      freeInput.placeholder = '0';
+      freeInput.inputMode = 'numeric';
+      const freeBtn = document.createElement('button');
+      freeBtn.className = 'free-set-btn';
+      freeBtn.textContent = 'セット';
+      freeBtn.addEventListener('click', () => {
+        const v = parseInt(freeInput.value, 10) || 0;
+        document.querySelectorAll('#slot-' + i + ' .count-btn')
+          .forEach(b => b.classList.remove('selected'));
+        setSlot(i, v, null);
+      });
+      freeRow.appendChild(freeLabel);
+      freeRow.appendChild(freeInput);
+      freeRow.appendChild(freeBtn);
+
+      card.appendChild(header);
+      card.appendChild(memo);
+      card.appendChild(btnRow);
+      card.appendChild(freeRow);
+
+      // 追加ボタンの直前に挿入
+      wrap.insertBefore(card, document.getElementById('add-slot-btn').parentNode);
+    }
   </script>
 </body>
 </html>
