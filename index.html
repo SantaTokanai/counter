@@ -281,8 +281,17 @@
         btn.textContent = n + '回';
         if (values[i] === n) btn.classList.add('selected');
         btn.addEventListener('click', () => {
-          document.getElementById('free-inp-' + i).value = '';
-          setSlot(i, n, idx);
+          if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            values[i] = 0;
+            document.getElementById('slot-val-' + i).textContent = '0';
+            document.getElementById('free-inp-' + i).value = '';
+            saveValues();
+            updateTotal();
+          } else {
+            document.getElementById('free-inp-' + i).value = '';
+            setSlot(i, n, idx);
+          }
         });
         btnRow.appendChild(btn);
       });
