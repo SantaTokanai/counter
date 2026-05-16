@@ -103,24 +103,28 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
-    .slot-name {
-      font-size: 12px;
-      color: var(--text-secondary);
-      flex: 1;
-    }
-    .slot-value {
-      font-size: 20px;
-      font-weight: 500;
+    .slot-name { font-size: 12px; color: var(--text-secondary); flex: 1; }
+    .slot-value { font-size: 20px; font-weight: 500; color: var(--text); min-width: 28px; text-align: right; }
+    .slot-unit { font-size: 12px; color: var(--text-secondary); }
+
+    /* ─── メモ欄 ─── */
+    .memo-input {
+      width: 100%;
+      font-size: 13px;
+      padding: 7px 10px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border);
+      background: var(--bg-secondary);
       color: var(--text);
-      min-width: 28px;
-      text-align: right;
+      font-family: inherit;
+      margin-bottom: 10px;
+      resize: none;
+      line-height: 1.4;
     }
-    .slot-unit {
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
+    .memo-input::placeholder { color: var(--text-secondary); }
+    .memo-input:focus { outline: none; border-color: var(--text-info); background: var(--bg); }
 
     .btn-row {
       display: grid;
@@ -148,16 +152,8 @@
       border-color: transparent;
     }
 
-    .free-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .free-label {
-      font-size: 12px;
-      color: var(--text-secondary);
-      flex-shrink: 0;
-    }
+    .free-row { display: flex; align-items: center; gap: 8px; }
+    .free-label { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
     .free-input {
       width: 68px;
       font-size: 15px;
@@ -198,7 +194,41 @@
   <script>
     const PRESETS = [1, 2, 3, 4, 5];
     const NUM_SLOTS = 10;
-    const values = new Array(NUM_SLOTS).fill(0);
+    const STORAGE_KEY = 'counter_values_v1';
+    const MEMO_KEY    = 'counter_memos_v1';
+
+    // 数値の保存・読み込み
+    function loadValues() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length === NUM_SLOTS) return parsed;
+        }
+      } catch (e) {}
+      return new Array(NUM_SLOTS).fill(0);
+    }
+    function saveValues() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(values)); } catch (e) {}
+    }
+
+    // メモの保存・読み込み
+    function loadMemos() {
+      try {
+        const raw = localStorage.getItem(MEMO_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length === NUM_SLOTS) return parsed;
+        }
+      } catch (e) {}
+      return new Array(NUM_SLOTS).fill('');
+    }
+    function saveMemos() {
+      try { localStorage.setItem(MEMO_KEY, JSON.stringify(memos)); } catch (e) {}
+    }
+
+    const values = loadValues();
+    const memos  = loadMemos();
 
     function updateTotal() {
       document.getElementById('grand-total').textContent =
@@ -210,6 +240,7 @@
       document.getElementById('slot-val-' + i).textContent = val;
       document.querySelectorAll('#slot-' + i + ' .count-btn')
         .forEach((b, idx) => b.classList.toggle('selected', idx === btnIdx));
+      saveValues();
       updateTotal();
     }
 
@@ -220,13 +251,35 @@
       card.className = 'slot-card';
       card.id = 'slot-' + i;
 
-      // プリセットボタン
+      // ── ヘッダー（枠名 + 回数）
+      const header = document.createElement('div');
+      header.className = 'slot-header';
+      header.innerHTML =
+        '<span class="slot-name">枠 ' + (i + 1) + '</span>' +
+        '<span class="slot-value" id="slot-val-' + i + '">' + values[i] + '</span>' +
+        '<span class="slot-unit">回</span>';
+
+      // ── メモ欄
+      const memo = document.createElement('textarea');
+      memo.className = 'memo-input';
+      memo.id = 'memo-' + i;
+      memo.placeholder = 'メモ（全角10文字程度）';
+      memo.maxLength = 20;          // 全角10文字 ≒ バイト数20で制限
+      memo.rows = 1;
+      memo.value = memos[i];
+      memo.addEventListener('input', () => {
+        memos[i] = memo.value;
+        saveMemos();
+      });
+
+      // ── プリセットボタン
       const btnRow = document.createElement('div');
       btnRow.className = 'btn-row';
       PRESETS.forEach((n, idx) => {
         const btn = document.createElement('button');
         btn.className = 'count-btn';
         btn.textContent = n + '回';
+        if (values[i] === n) btn.classList.add('selected');
         btn.addEventListener('click', () => {
           document.getElementById('free-inp-' + i).value = '';
           setSlot(i, n, idx);
@@ -234,17 +287,10 @@
         btnRow.appendChild(btn);
       });
 
-      // ヘッダー
-      const header = document.createElement('div');
-      header.className = 'slot-header';
-      header.innerHTML =
-        '<span class="slot-name">枠 ' + (i + 1) + '</span>' +
-        '<span class="slot-value" id="slot-val-' + i + '">0</span>' +
-        '<span class="slot-unit">回</span>';
-
-      // フリー入力行
+      // ── フリー入力
       const freeRow = document.createElement('div');
       freeRow.className = 'free-row';
+
       const freeLabel = document.createElement('span');
       freeLabel.className = 'free-label';
       freeLabel.textContent = 'フリー入力';
@@ -256,6 +302,9 @@
       freeInput.className = 'free-input';
       freeInput.placeholder = '0';
       freeInput.inputMode = 'numeric';
+      if (values[i] > 0 && !PRESETS.includes(values[i])) {
+        freeInput.value = values[i];
+      }
 
       const freeBtn = document.createElement('button');
       freeBtn.className = 'free-set-btn';
@@ -272,13 +321,17 @@
       freeRow.appendChild(freeBtn);
 
       card.appendChild(header);
+      card.appendChild(memo);      // ヘッダーの直下にメモ欄
       card.appendChild(btnRow);
       card.appendChild(freeRow);
       wrap.appendChild(card);
     }
 
-    // リセット
+    updateTotal();
+
+    // リセット（確認あり・メモは消さない）
     document.getElementById('reset-btn').addEventListener('click', () => {
+      if (!confirm('回数をリセットしますか？\n（メモは残ります）')) return;
       values.fill(0);
       for (let i = 0; i < NUM_SLOTS; i++) {
         document.getElementById('slot-val-' + i).textContent = '0';
@@ -286,6 +339,7 @@
           .forEach(b => b.classList.remove('selected'));
         document.getElementById('free-inp-' + i).value = '';
       }
+      saveValues();
       updateTotal();
     });
   </script>
